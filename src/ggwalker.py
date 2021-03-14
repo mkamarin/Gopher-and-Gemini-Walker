@@ -159,6 +159,7 @@ def link_type(item, text):
         return local, 'search' # search sessions
     return local, 'unk'
 
+
 class walker(cmd.Cmd):
     prompt = 'walker> '
     intro  = "Welcome to Gopher and Gemini walker\nType ? or help for list of commands."
@@ -206,6 +207,11 @@ class walker(cmd.Cmd):
         self.stack.append(place)
         self.links = []
 
+    ##################################################################
+    ###                    Processing section                      ###
+    ### This section do the real work of generating the output     ###
+    ###        Composed of various process_* functions             ###
+    ##################################################################
     def process_gopher_map(self, name):
         if not os.path.isfile(name):
             error('File does not exist [',name,']')
@@ -276,8 +282,6 @@ class walker(cmd.Cmd):
                     line  = line.strip()[2:].strip()
                     parts = re.split(r'\s+',line, 1)
                     label = parts[0] if len(parts) == 1 else parts[1]
-                    #rint("==> line: [[",line,"]]\n", parts, sep='')
-                    #rint("==> label:[[",label,"]] [[",parts[0],"]]")
                     self.links.append('>' + parts[0].strip())
                     print(gemini_link_line(count, label))
                     count += 1
@@ -363,6 +367,17 @@ class walker(cmd.Cmd):
         self.update_stack(url)
         webbrowser.open(url)
 
+    def print_list(self, lst, padding=' ', marker=0):
+        count = 1
+        for l in lst:
+            print('{:2d} {} \x1b[38;5;119m{}\x1b[0m'.format(count, '  ' if marker != count else '=>', l))
+            count += 1
+
+    ##################################################################
+    ###                    Navigation section                      ###
+    ### This section deals with finding the right content to print ###
+    ### But, it does not print the content. Mostly visit_* defs    ###
+    ##################################################################
 
     def visit_file(self, name):
         if not os.path.isfile(name):
@@ -442,7 +457,10 @@ class walker(cmd.Cmd):
             error("Unable to find the site at '", place,"'")
 
 
-    ### Command section ###
+    #################################################################
+    ###                      Command section                      ###
+    ###  This section deals with the cmd.Cmd stuff (do_*, etc.)   ###
+    #################################################################
     def precmd(self, line):
         sx = os.get_terminal_size()
         # set the terminal configuration:
@@ -483,8 +501,8 @@ class walker(cmd.Cmd):
         self.base = ''
         if path:
             if path.isdigit():
-                if int(path) < len(self.paths):
-                    self.base = self.paths[int(path)]
+                if int(path) <= len(self.paths):
+                    self.base = self.paths[int(path)-1]
                 else:
                     error("invalid index")
             else:
@@ -602,14 +620,6 @@ class walker(cmd.Cmd):
             error("Invalid type 're[move] [p[ath] <number>|<path>] [u[rl] <number>|<url>]'") 
             return
 
-    def do_paths(self, line):
-        '''List of paths to visit (shortcut 'p')\np[aths]'''
-        print(self.paths)
-
-    def do_urls(self, line):
-        '''List of site URLs'''
-        print(self.site_urls)
-
     def do_back(self, line):
         '''Back to previous page in the site (shortcut 'b')'''
         if self.stack:
@@ -633,12 +643,29 @@ class walker(cmd.Cmd):
         else:
             error("Unknown place [".place,"]")
 
+    def do_paths(self, line):
+        '''List of paths to visit (shortcut 'p')\np[aths]'''
+        print('\x1b[44m' + 'List of Paths'.center(self.columns) + '\x1b[0m')
+        self.print_list(self.paths)
+
+    def do_urls(self, line):
+        '''List of site URLs'''
+        print('\x1b[44m' + 'List of URLs'.center(self.columns) + '\x1b[0m')
+        self.print_list(self.site_urls)
+
     def do_dump(self, line):
         '''Dump internal structures'''
-        print("Terminal:\n    Lines: ",self.lines,"\n    Columns: ",self.columns,
+        print('\x1b[44m' + 'Dump of internal structures'.center(self.columns) + '\x1b[0m')
+        print("Terminal:\n    Lines:   ",self.lines,"\n    Columns: ",self.columns,
                 "\nProcessing:",self.processing,"\nBase:",self.base,
-                "\nPaths:",self.paths,"\nSite URLs:",self.site_urls,
-                "\nLinks:",self.links,"\nStack:",self.stack)
+                "\nPaths:", sep='')
+        self.print_list(self.paths,'    ')
+        print("\nSite URLs:")
+        self.print_list(self.site_urls,'    ')
+        print("\nLinks:")
+        self.print_list(self.links,'    ')
+        print("\nStack:")
+        self.print_list(self.stack,'    ')
 
 
     def default(self, line):

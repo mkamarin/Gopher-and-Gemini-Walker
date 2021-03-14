@@ -1,0 +1,108 @@
+i                                                             	/
+i      _____             _                 __  __             	/
+i     / ____|           | |               |  \/  |            	/
+i    | |  __  ___  _ __ | |__   ___ _ __  | \  / | __ _ _ __  	/
+i    | | |_ |/ _ \| '_ \| '_ \ / _ \ '__| | |\/| |/ _` | '_ \ 	/
+i    | |__| | (_) | |_) | | | |  __/ |    | |  | | (_| | |_) |	/
+i     \_____|\___/| .__/|_| |_|\___|_|    |_|  |_|\__,_| .__/ 	/
+i                 | |                                  | |    	/
+i                 |_|                                  |_|    	/
+i                                                             	/
+
+A Gopher server exposes a directory structure to the network using
+the gopher protocol (RFC 1436).  In that respect, it is similar to
+FTP  (RFC 959).  The main  difference is that  Gopher  looks for a
+‘gophermap’  file in a  directory.  If that file is present,  then
+Gopher will use that  file as a menu for  the directory, otherwise
+it will  just list the files  and  directories in  that directory.
+Therefore a ‘gophermap’  is just a text file that serves as a menu
+for a directory, but can also provide links to other resources.
+
+A Gopher map has a very simple structure. Each line can have up to
+four fields separated by horizontal tabs  (ASCII decimal 09 or hex
+x09 or ‘\t’). With one exception, the first character of the first
+field indicates the type of line. Therefore, a line looks like:
+i	/
+i    Label <TAB> selector <TAB> host <TAB> port	/
+
+Where,
+
+i    - Label should be human readable text.	/
+i      The first character of the label is the line item type.	/
+i    - selector is what the line is pointing to. 	/
+i      The selector can be a file, a directory, etc.	/
+i    - host refers to the host were the selector resides	/
+i    - port is the port used Gopher in that host	/
+
+The most common item types are:
+
+i    '0’ for a file (normally text files)	/
+i    '1’ for a directory	/
+i    '9’ for binary files (for example, pdf, zip, etc.)	/
+i    'g’ for GIF graphic files	/
+i    'I’ for other image files (like jpg, png, etc.)	/
+i    'h’ for HTML files. 	/
+i    'i’ for informational messages.	/
+i    's’ for sound files (like wav, etc.)	/
+
+  If the selector is located in the host containing the gophermap,
+then the host and port can be omitted.  Which is a  good practice,
+because  then you can move the directory  structure to a different
+host without changing any gophermaps.
+
+A file or directory  selector that starts with ‘/’ is  relative to
+the main directory  in  the  gopher site.  Otherwise,  the file or
+directory is located in the same directory than the gophermap.
+
+Lines with no tab:
+1) Lines without any horizontal tabs are considered text and should
+   be displayed as such by Gopher clients.
+
+Lines with a single tab:
+1) Lines staring with item type  ‘i’  should have a selector (so it
+   will have one  <TAB>).  It  is  common  to  use  ‘/’  for such a
+   selector.  It is  also common to omit  the host and port fields.
+   Therefore only one tab is present on these lines.
+
+An example of these type of lines is  the banner at the top of this
+document, that uses the ‘i’ item type and ‘/’ as the selector. That
+forces the gopher client to show the line exactly as it was created.
+
+2) All other item types  can have the label and the selector fields
+   only if they reside in the same  host as the gophermap.  In this
+   case the host and port fields are optional.
+
+Few examples are:
+0A text file (relative to this gopgermap)	stuff/text.txt
+9A pdf file (relative to the gopher site)	/stuff/a-file.pdf
+Ian image file	stuff/image.jpg
+1The stuff directory (relative to this gopgermap)	stuff
+1The stuff directory (relative to the gopher site)	/stuff
+
+Lines with three tabs:
+1) Lines with a  selector that  resides in a  different host.  Must
+   have the host and port fields. Therefore the URL for those lines
+   becomes:  “gopher://<host>:<port><selector>”.  Note that in this
+   case, the selector must start with a  ‘/’ and be relative to the
+   hosting gopher site.
+
+Few examples:
+1The base directory of the SDF gopher site	/	sdf.org	70
+1The Floodgap gopher site	/	gopher.floodgap.com	70
+
+The exception are lines with item type of ‘h’. The selector in those
+lines can start with “URL:” followed by a scheme (e.g. “URL:http://”,
+or “URL:ftp://”, “URL:gopher://”, “URL:gemini//”, etc.). Note that in
+this case the host and port fields are optional.
+
+Few example:
+hThe SDF web site	URL:http://sdf.org/
+hThe Floodgap web site	URL:https://www.floodgap.com/
+hOur sister toycapsule	URL:gemini://myserver/
+
+This is basically all what you need to know to create gophermaps. It is
+in good manners to keep most posts in a phlog as text files  (with .txt
+extension), and use gophermaps to point to the posts. Or in some cases,
+just write text  files in a suitable  directory structure and leave the
+gopher server navigate the directory structure. 
+

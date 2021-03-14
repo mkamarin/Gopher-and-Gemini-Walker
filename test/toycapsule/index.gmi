@@ -1,0 +1,53 @@
+```
+                                     
+                                     
+      _____                _       _ 
+     / ____|              (_)     (_)
+    | |  __  ___ _ __ ___  _ _ __  _ 
+    | | |_ |/ _ \ '_ ` _ \| | '_ \| |
+    | |__| |  __/ | | | | | | | | | |
+     \_____|\___|_| |_| |_|_|_| |_|_|
+                                     
+                                     
+```
+
+# Gemini
+
+Gemini files (ending in .gmi or .gemini) are similar to Gopher's gophermaps in that lines are clearly separated into links and text.  The main difference is that links follow modern URI formats and the text lines can be formatted using a simple markdown syntax. This separation between links and text is different than modern hypertext document types in which the hyperlinks are normally embedded into the text, simplifying the user navigation between documents.
+
+## Simplified Markdown
+Gemini markdown is based on the first three characters of a line. There is no interpretation of markdown in the rest of the line. Therefore, there is no markdown for tables, emphasis (bold, italic, etc.), etc.
+
+There are six types of lines:
+
+* Fenced text is sandwiched between lines starting with three back ticks (```). The lines with the three back ticks are ignored, but the text in the fenced section must be displayed exactly as they are in the file. This is similar to the Gopher ‘i’ item type. An example of fenced text is the banner in the top of this document.
+
+* Heading lines. There are three levels of headers indicated with one to three hashtags characters (#). This document includes three headers. One with a single hashtag (‘# Gopher’) , and two using two hashtags (‘## Simplified Markdown’ and ‘## Link lines’).
+
+* Unordered lists. Lines starting with an asterisk and one blank (* ) are formatted by the Gemini client as an unordered list item. This line is an example of a unordered list line.
+
+* Line starting with a greater than character (>) indicates a quoted line, and should be formatted accordingly by the Gemini client. 
+
+* Lines that do not match any other type of lines are considered regular text. These are lines for which the first three characters don’t match any other line type.
+
+## Link lines
+Although, link lines can be considered part of the markdown, they have a different purpose and  semantics. These lines start with a equal and greater than characters (=>) and have two fields: 
+
+* The URI indicated the link. There should not be blanks in the URI (should be replaced by ‘%20’ – RFC 3986).
+* An optional human readable label for the link. If it is not present, the URI will be used for this purpose
+
+The fields are separated by at least one blank.
+
+The URI can be fully qualified URLs (for example gemini://myserver.org/), relative to the location of the Gemini file (for example stuff/text.txt), or absolute from the base of the Gemini capsule or site (for example /stuff/text.txt).
+
+### Examples
+
+=> stuff/text.txt A text file (relative to this gemini file)
+=> /stuff/a-file.pdf  A pdf file (relative to the gemini site)
+=> stuff/image.jpg 
+=> stuff The stuff directory (relative to this gemini file)
+=> /stuff  The stuff directory (relative to the gemini site)
+=>  https://gemini.circumlunar.space/  Project Gemini web site 
+=> gemini://gemini.circumlunar.space/  Project Gemini gemini site
+=> gopher://gopher.floodgap.com:70/1/  Floodgap Gopher site
+=>gemini://myserver/ Our sister toyhole 
