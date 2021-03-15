@@ -107,14 +107,147 @@ walker> links
 walker> 
 ```
 
-Now you have enough information to navigate your own Gopher hole or Gemini capsule. You can do the same exercise using `test/toycapsule' instead. 
+Now you have enough information to navigate your own Gopher hole or Gemini capsule. You can do the same exercise using `test/toycapsule' instead. You can exit this session using `exit` or `quit`, as follows:
+```
+walker> exit
+```
 
-Note that link 10 refers to `gemini://myserver` which in this case refers to our own `test/toycapsule`. You can also have a `gopher://myserver` being listed as a link on the Gemini capsule. If you want to navigate between them, you can execute `ggwalker.py`, as follows:
+Note that link `10` refers to `gemini://myserver` which in this case refers to our own `test/toycapsule`. You can also have a `gopher://myserver` being listed as a link on the Gemini capsule. If you want to navigate between them, you can execute `ggwalker.py`, as follows:
 ```
 src/ggwalker.py  -s gemini://myserver -s gopher://myserver  test/toyhole test/toycapsule
 ```
 
 In here, we passed two site URLs using the `-s` option, and two paths to navigate. We can now do `visit 1` or `visit 2` to visit one of the paths. If we now go to a link that has a fully qualified url, for example `gemini://myserver/stuff/text.txt` then `ggwalker.py` will change it to `test/toycapsule/stuff/text.txt` and navigate to it.
+
+### Commands
+As we saw in the previous section, there is a set of commands that `ggwalker.py` will accept during an interactive session. Most of those commands can be abbreviated to one or two letters. In here we will present all the commands by type.
+
+#### Basic commands
+Basic commands that most users will need.
+
+##### exit (`e`) / Quit (`q`) / EOF
+Exit the `ggwalker.py` session. It can be abbreviated to `e`, `q`, or `<ctrl>-D`.
+
+##### help (`?`)
+Provide help about the different commands. It can be abbreviated to `?`. Detailed help for a command can be obtained using `help <command>` (same as `? <command>`)
+
+##### shell (`!`)
+Provides a way to execute shell commands. For example, `! ls`.
+
+#### Paths and URLs
+A path is the base directory of a Gopher hole or a Gemini capsule. Meaning it corresponds to `/` in your site. For example, in this repository you can find two paths, namely `Gopher-and-Gemini-Walker/test/toyhole` and `Gopher-and-Gemini-Walker/test/toycapsule`. You can pass multiple paths via command line arguments as follows:
+```
+src/ggwalker.py  Gopher-and-Gemini-Walker/test/toyhole  Gopher-and-Gemini-Walker/test/toycapsule
+```
+
+A site URL, in this context, corresponds to the URL the deployed Gopher hole or Gemini capsule will have. In most cases, you will not need to use them, unless you are using full URLs for all your references. For example, using our test directory, if I refer to a text file as `stuff/text.txt` the re is no need to supply the site URL, but if I use `gemini://stuff/text.txt` instead, then you need to provide the site URL, so that `ggwalker.py` can find it (otherwise, it will try to launch a gemini browser). 
+You can pass multiple site URLs via command line arguments using the `-s` flag, as follows:
+```
+src/ggwalker.py  -s gemini://myserver  -s gopher://myserver 
+```
+
+##### add (`a`)
+You can add both paths and site URLs using the add command. 
+The syntax is: `a[dd] [ p[ath] <path> | u[rl] <url>]'. 
+For example:
+```
+walker> add path Gopher-and-Gemini-Walker/test/toyhole
+or
+walker> a p Gopher-and-Gemini-Walker/test/toyhole
+walker> add url gemini://myserver
+or
+walker> a u gemini://myserver
+```
+
+##### paths (`p`)
+You can list all the paths with the paths command. Note that each path is assign a number that will be used for other commands that accept paths. For example:
+```
+walker> p
+               List of Paths
+  1    ~/src/Gopher-and-Gemini-Walker/test/toyhole
+  2    ~/src/Gopher-and-Gemini-Walker/test/toycapsule
+walker> 
+```
+
+##### urls
+Similar to `paths`, `urls` list all the site URLs. This command does not have an abbreviation. 
+
+##### remove ('re')
+You can remove a path using its full name or its number. 
+The syntax is: `re[move] [p[ath] <number>|<path>] [u[rl] <number>|<url>]`.
+
+#### Configuration files
+Paths and site URLs are long and cumbersome to type every time that you execute `ggwalker.py`. In addition, they are for most parts static and don't change much over time. Therefore is convenient to have a `save` and `read` commands.
+
+ ##### save (`s`)
+Saves the paths and site URLs to a json file. If no filename is given then `config.json` will be used.
+The syntax is: `s[ave] [<file-name>]`
+
+##### read (`r`)
+Read a config file. If no filename is given then `config.json` will be used.
+The syntax is: `r[ead] [<file-name>]`
+
+#### Navigation
+The main purpose of `ggwalker.py` is to allow you to navigate your Gopher hole and/or Gemini capsule. You start navigating by using the `visit` command.
+
+##### visit (`v`)
+You visit a path. Therefore you must provide a path name or a path number. If only one path exists, then the path number is optional.
+The syntax is: `v[isit] [<path-number>|<path>]`
+
+Visit takes you to the first page of the site at the path. Gopher sites may have a `gophermap` file under that path, otherwise the directory content is listed. Gemini sites require an `index.gmi` or `index.gemini` file under that path. In either case, that is the page that will be output.
+
+##### <number>
+Gopher and Gemini pages have links to other pages, files, directories, URLs, etc. Those links are numbered by most clients, and `ggwalker.py` do the same. You navigate to those links by inputting the link number. For example:
+```
+...
+ 1 (TXT) A text file (relative to this gopgermap)
+ 2 (BIN) A pdf file (relative to the gopher site)
+ 3 (PIC) an image file
+ 4 (DIR) The stuff directory (relative to this gopgermap)
+ 5 (DIR) The stuff directory (relative to the gopher site)
+...
+
+walker> 2
+```
+
+Entering number two above takes you to the pdf file, which will be open in the default application for pdf reading in your system.
+Note that each time you navigate to a link, you are leaving the page and so the page links are not longer available. However when you get back to the page, they become available again.
+
+##### links (`l`)
+The links shown when the page is output are the human readable label for the link. You can use the `link` command to see the real link. Using the previous example:
+```
+walker> l
+ 1 (TXT) stuff/text.txt
+ 2 (BIN) /stuff/a-file.pdf
+ 3 (PIC) stuff/image.jpg
+ 4 (DIR) stuff
+ 5 (DIR) /stuff
+...
+
+walker>
+```
+
+##### back (`b`)
+When you are in a page, sometimes you want to go to the previous page. You can do that using the `back` command. You can keep going back until you reach the initial page of the site. In which case, back just reload that page.
+
+##### forward (`f`)
+If you have used the `back` command, you may want to go forward to the page in which you were before. You do that using the `forward` command. If you reached the last page, then forward just reload that last page.
+
+You can think of `back` and `forward` as the back and forward arrows in a browser.
+
+#### Miscellaneous
+These are debugging commands.
+
+##### dump
+This command just dump all the internal data structures.
+
+## Conclusion
+This utility may be useful for people creating Gopher holes or Gemini capsules by hand in their local machines. It allows to test and inspect the Gopher hole or Gemini capsule before deploying them into the hosting environment.
+
+It was developed as a complement to he [Test-Hugo-2-Gopher-and-Gemini](https://github.com/mkamarin/Test-Hugo-2-Gopher-and-Gemini) repository. Which in turn was created to test the [Hugo-2-Gopher-and-Gemini](https://github.com/mkamarin/Hugo-2-Gopher-and-Gemini) generated Gopher holes and Gemini capsules. 
+ 
+
+
 
 
 

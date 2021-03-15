@@ -35,11 +35,6 @@ import mimetypes
 import webbrowser
 import subprocess
 
-#mport io
-#mport random
-#mport urllib
-#mport datetime
-
 verbose = False
 
 def vbprint(*args, **kwargs):
@@ -117,7 +112,7 @@ def gopher_real_link(item, parts):
 def gopher_file_item(name):
     mime = mimetypes.MimeTypes().guess_type(name)[0]
     if not mime:
-        if name.endswith('gophermap'):
+        if name.endswith('gophermap') or name.endswith('.gmi') or name.endswith('.gemini'):
             return '0'
         else:
             return '1' # Assume directory
@@ -170,6 +165,9 @@ class walker(cmd.Cmd):
 
     paging = False # check: https://www.geeksforgeeks.org/print-colors-python-terminal/
 
+    ## Type of processing being done (either gopher or gemini)
+    processing = ''
+
     ## Paths are the list of folders containing Gopher or Gemini sites.
     ## Corresponds to <path> in the command line invocation of this program
     ## Paths can be updated by using 'add path' (do_add) or 'remove path' (do_remove)
@@ -199,13 +197,39 @@ class walker(cmd.Cmd):
 
     ## Stack of visited links. Used for back (do_back)
     stack  = []
-
-    ## Type of processing being done (either gopher or gemini)
-    processing = ''
+    pStack = -1
 
     def update_stack(self, place):
-        self.stack.append(place)
         self.links = []
+        if self.stack and (self.stack[self.pStack] == place):
+            return
+        if self.pStack != (len(self.stack) -1):
+            self.stack = self.stack[:self.pStack+1]
+        self.stack.append(place)
+        self.pStack += 1
+
+    def back_stack(self):
+        if 0 <= (self.pStack -1) < len(self.stack):
+            self.pStack -= 1
+            return self.stack[self.pStack]
+        else:
+            return self.base
+
+    def forward_stack(self):
+        if 0 <= (self.pStack +1) < len(self.stack):
+            self.pStack += 1
+            return self.stack[self.pStack]
+        elif self.stack and (self.pStack == (len(self.stack) -1)):
+            return self.stack[self.pStack]
+        else:
+            return self.base
+
+    def clear_stack(self):
+        self.stack  = []
+        self.pStack = -1
+
+    def remove_base(self, place):
+        return place.replace(self.base, '', 1)
 
     ##################################################################
     ###                    Processing section                      ###
@@ -220,7 +244,7 @@ class walker(cmd.Cmd):
         count = 1
         try:
             flSrc = open(name, 'rt')
-            title = 'Gopher menu [' + name + ']' 
+            title = 'Gopher menu [' + self.remove_base(name) + ']' 
             print('\x1b[44m' + title.center(self.columns) + '\x1b[0m')
             self.update_stack(name)
 
@@ -257,7 +281,7 @@ class walker(cmd.Cmd):
         isFenced = False
         try:
             flSrc = open(name, 'rt')
-            title = 'Gemini page [' + name + ']' 
+            title = 'Gemini page [' + self.remove_base(name) + ']' 
             print('\x1b[44m' + title.center(self.columns) + '\x1b[0m')
             self.update_stack(name)
             lineWidth = self.columns - len(geminiFiller) -2
@@ -321,10 +345,20 @@ class walker(cmd.Cmd):
 
         flSrc.close()
 
+    def process_external_app(self, name):
+        try:
+            title = 'Invoke app [' + self.remove_base(name) + ']' 
+            print('\x1b[44m' + title.center(self.columns) + '\x1b[0m')
+            self.update_stack(name)
+
+            subprocess.run(['xdg-open', name])
+        except OSError as e:
+            error(e, " while processin file: [", name,"]")
+
     def process_text_file(self, name):
         try:
             flSrc = open(name, 'rt')
-            title = 'Text file [' + name + ']' 
+            title = 'Text file [' + self.remove_base(name) + ']' 
             print('\x1b[44m' + title.center(self.columns) + '\x1b[0m')
             self.update_stack(name)
 
@@ -344,7 +378,7 @@ class walker(cmd.Cmd):
         count = 1
         try:
             files = os.listdir(name)
-            title = 'Gopher directory [' + name + ']' 
+            title = 'Gopher directory [' + self.remove_base(name) + ']' 
             print('\x1b[44m' + title.center(self.columns) + '\x1b[0m')
             self.update_stack(name)
 
@@ -370,7 +404,7 @@ class walker(cmd.Cmd):
     def print_list(self, lst, padding=' ', marker=0):
         count = 1
         for l in lst:
-            print('{:2d} {} \x1b[38;5;119m{}\x1b[0m'.format(count, '  ' if marker != count else '=>', l))
+            print('{}{:2d} {} \x1b[38;5;119m{}\x1b[0m'.format(padding, count, '  ' if marker != count else '=>', l))
             count += 1
 
     ##################################################################
@@ -391,17 +425,21 @@ class walker(cmd.Cmd):
         if mm[0] == 'text':
             self.process_text_file(name)
         else:
-            try:
-                subprocess.run(['xdg-open', name])
-            except OSError as e:
-                error(e, " while processin file: [", name,"]")
+            self.process_external_app(name)
 
-    def rebase_link(link):
+    def rebase_link(self, link):
         for url in self.site_urls:
             if link.startswith(url):
-                for l in self.links:
-                    new = link.replace(url,l,1)
+                ## First try our current base
+                new = link.replace(url,self.base,1)
+                if os.path.exists(new):
+                    return new
+                ## Now try other paths
+                for p in self.paths:
+                    new = link.replace(url,p,1)
                     if os.path.exists(new):
+                        self.base = p
+                        self.clear_stack()
                         return new
         return ''
 
@@ -412,8 +450,8 @@ class walker(cmd.Cmd):
             rest = link[1:]
             local, kind = link_type(item, rest)
             localLink = ''
-            if not local and (kind.startswith('gopher://') or kind.startswith('gemini://')):
-                localLink = rebase_link(kind)
+            if not local and (rest.startswith('gopher://') or rest.startswith('gemini://')):
+                localLink = self.rebase_link(rest)
             if localLink:
                 local = True
             else:
@@ -422,6 +460,8 @@ class walker(cmd.Cmd):
                 self.visit(localLink)
             elif local and (kind == 'file'):
                 if rest.endswith('gophermap'):
+                    self.process_gopher_map(localLink)
+                elif rest.endswith('.gmi') or rest.endswith('.gemini'):
                     self.process_gopher_map(localLink)
                 else:
                     self.visit_file(localLink)
@@ -433,8 +473,23 @@ class walker(cmd.Cmd):
         except IndexError:
             print('Invalid link id')
 
+    def visit_stack(self, place):
+        if re.search(r'^[a-zA-Z]+://',place):
+            self.process_url(place)
+        elif os.path.isdir(place):
+            self.visit(place)
+        elif os.path.isfile(place):
+            if place.endswith('.gmi') or place.endswith('.gemini'):
+                self.process_gemini_map(place)
+            elif place.endswith('gophermap'):
+                self.process_gopher_map(place)
+            else:
+                self.visit_file(place)
+        else:
+            error("Unknown place [",place,"]")
+
     def visit(self, place):
-        '''Place must be a fully qualified path'''
+        '''Place must be a fully qualified directory path'''
 
         if not os.path.isdir(place):
             error('Place must be a valid directory [',place,']')
@@ -453,6 +508,8 @@ class walker(cmd.Cmd):
             return
         if self.processing and (self.processing == 'gopher'):
             self.process_gopher_dir(place)
+        elif self.processing and (self.processing == 'gemini'):
+            error("Not a Gemini file '", place,"'")
         else:
             error("Unable to find the site at '", place,"'")
 
@@ -495,10 +552,11 @@ class walker(cmd.Cmd):
 
 
     def do_visit(self, line):
-        '''Visit a path to a Gopher hole or Gemini capsule (shortcut 'v')\nv[isit] [<number>|<path>]'''
+        '''Visit a path to a Gopher hole or Gemini capsule (shortcut 'v')\nv[isit] [<path-number>|<path>]'''
         path = line.strip()
         old = self.base
         self.base = ''
+        self.clear_stack()
         if path:
             if path.isdigit():
                 if int(path) <= len(self.paths):
@@ -531,14 +589,6 @@ class walker(cmd.Cmd):
                 return
         print("Invalid set option ",line)
 
-    def do_up(self, line):
-        '''Move one page up (shortcuts: 'u', 'k')'''
-        print(self.stack)
-        print("TODO")
-
-    def do_down(self, line):
-        '''Move one page down (shortcuts: 'd', 'j')'''
-        print("TODO")
 
     ### This section deal with configuration files ###
     def do_save(self, line):
@@ -551,7 +601,7 @@ class walker(cmd.Cmd):
         print("saved to",name)
 
     def do_read(self, line):
-        '''Read configuration from <file> (shortcut 'r')\nr[ead] [<file>] (default to config.json)'''
+        '''Read configuration from <file> (shortcut 'r')\nre[ad] [<file>] (default to config.json)'''
         name = line.strip()
         name = name if name else 'config.json'
         with open(name, 'r') as fl:
@@ -583,8 +633,7 @@ class walker(cmd.Cmd):
             return
 
     def do_remove(self, line):
-        '''Remove a <path> from bookmarks of paths (shortcut 're')\nre[move] [p[ath] <number>|<path>] [u[rl] <number>|<url>]'''
-
+        '''Remove a <path> from paths (shortcut 're')\nr[emove] [p[ath] <number>|<path>] [u[rl] <number>|<url>]'''
         what = line.strip().split(' ',1)
         if len(what) != 2:
             error("Missing component should be 're[move] [p[ath] <number>|<path>] [u[rl] <number>|<url>]'") 
@@ -620,28 +669,13 @@ class walker(cmd.Cmd):
             error("Invalid type 're[move] [p[ath] <number>|<path>] [u[rl] <number>|<url>]'") 
             return
 
+    def do_forward(self, line):
+        '''Forward to next page in the site stack (shortcut 'f')'''
+        self.visit_stack(self.forward_stack())
+
     def do_back(self, line):
-        '''Back to previous page in the site (shortcut 'b')'''
-        if self.stack:
-            # Need to pop twice as the top is the current page
-            self.stack.pop()
-        if not self.stack:
-            self.visit(self.base)
-            return
-        place = self.stack.pop()
-        if re.search(r'^[a-zA-Z]+://',place):
-            self.process_url(place)
-        elif os.path.isdir(place):
-            self.visit(place)
-        elif os.path.isfile(place):
-            if place.endswith('.gmi') or place.endswith('.gemini'):
-                self.process_gemini_map(place)
-            elif place.endswith('gophermap'):
-                self.process_gopher_map(place)
-            else:
-                self.visit_file(place)
-        else:
-            error("Unknown place [".place,"]")
+        '''Back to previous page in the site stack (shortcut 'b')'''
+        self.visit_stack(self.back_stack())
 
     def do_paths(self, line):
         '''List of paths to visit (shortcut 'p')\np[aths]'''
@@ -657,15 +691,15 @@ class walker(cmd.Cmd):
         '''Dump internal structures'''
         print('\x1b[44m' + 'Dump of internal structures'.center(self.columns) + '\x1b[0m')
         print("Terminal:\n    Lines:   ",self.lines,"\n    Columns: ",self.columns,
-                "\nProcessing:",self.processing,"\nBase:",self.base,
-                "\nPaths:", sep='')
+                "\nProcessing:",self.processing,"\nBase: \x1b[38;5;119m ",self.base,
+                "\x1b[0m\nPaths:", sep='')
         self.print_list(self.paths,'    ')
         print("\nSite URLs:")
         self.print_list(self.site_urls,'    ')
         print("\nLinks:")
         self.print_list(self.links,'    ')
-        print("\nStack:")
-        self.print_list(self.stack,'    ')
+        print("\nStack(",self.pStack+1,"):", sep='')
+        self.print_list(self.stack,'    ',self.pStack+1)
 
 
     def default(self, line):
@@ -680,14 +714,16 @@ class walker(cmd.Cmd):
             return self.do_links(line)
         elif CMD == 'a':
             return self.do_add(line)
-        elif CMD == 're':
-            return self.do_remove(line)
         elif CMD == 'r':
+            return self.do_remove(line)
+        elif CMD == 're':
             return self.do_read(line)
         elif CMD == 's':
             return self.do_save(line)
         elif CMD == 'b':
             return self.do_back(line)
+        elif CMD == 'f':
+            return self.do_forward(line)
         elif CMD == 'v':
             return self.do_visit(line)
         elif CMD.isdigit() and (0 < int(CMD) <= len(self.links)):

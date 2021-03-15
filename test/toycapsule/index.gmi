@@ -45,9 +45,12 @@ The URI can be fully qualified URLs (for example gemini://myserver.org/), relati
 => stuff/text.txt A text file (relative to this gemini file)
 => /stuff/a-file.pdf  A pdf file (relative to the gemini site)
 => stuff/image.jpg 
-=> stuff The stuff directory (relative to this gemini file)
-=> /stuff  The stuff directory (relative to the gemini site)
+=> stuff/gemini.gmi Another Gemini file (relative to this gemini file).
+=>/stuff/gemini.gmi Another Gemini file (relative to the gemini site).
+=> gemini://myserver/stuff/gemini.gmi  Same Gemini file with full URL
+=> stuff The stuff directory (relative to this gemini file). Should fail
+=> /stuff  The stuff directory (relative to the gemini site). Should fail
 =>  https://gemini.circumlunar.space/  Project Gemini web site 
 => gemini://gemini.circumlunar.space/  Project Gemini gemini site
 => gopher://gopher.floodgap.com:70/1/  Floodgap Gopher site
-=>gemini://myserver/ Our sister toyhole 
+=>gopher://myserver/ Our sister toyhole 

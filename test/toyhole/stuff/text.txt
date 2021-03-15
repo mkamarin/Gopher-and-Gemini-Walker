@@ -1,3 +1,3 @@
-
-This is a text file.
-
+Begin
+This is a text file in a Gopher hole.
+End

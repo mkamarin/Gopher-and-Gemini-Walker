@@ -1,3 +1,3 @@
-
-This is a text file.
-
+Start
+This is a text file in a Gemini capsule.
+End
