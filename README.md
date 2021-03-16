@@ -1,5 +1,5 @@
 # Gopher-and-Gemini-Walker
-This is a terminal utility to navigate a folder structure containing a [Gopher](https://en.wikipedia.org/wiki/Gopher_%28protocol%29) hole or a [Gemini](https://en.wikipedia.org/wiki/Gemini_%28protocol%29) capsule.  It is useful to verify your Gopher hole or Gemini capsule before deploying them to the hosting environment.
+This is a terminal utility to navigate a folder structure containing a [Gopher](https://en.wikipedia.org/wiki/Gopher_%28protocol%29) hole or a [Gemini](https://en.wikipedia.org/wiki/Gemini_%28protocol%29) capsule.  It is useful to verify your Gopher hole or Gemini capsule before deploying them to the hosting environment. This utility may be useful for people creating Gopher holes or Gemini capsules by hand in their local machines. It allows to test and inspect the Gopher hole or Gemini capsule in the file system of a local machine. This utility does not access the network.
 
 This utility was developed to test and navigate the [Hugo-2-Gopher-and-Gemini](https://github.com/mkamarin/Hugo-2-Gopher-and-Gemini) generated Gopher holes and Gemini capsules. It is a complement to the [Test-Hugo-2-Gopher-and-Gemini](https://github.com/mkamarin/Test-Hugo-2-Gopher-and-Gemini) repository. However, it can be used stand alone to navigate any Gopher hole or Gemini capsule.
 
@@ -103,7 +103,7 @@ walker> links
  7 (DIR) gopher://gopher.floodgap.com/
  8 (URL) http://sdf.org/
  9 (URL) https://www.floodgap.com/
-10 (URL) gemini://myserver/
+10 (URL) gemini://myserver.com/
 walker> 
 ```
 
@@ -112,12 +112,12 @@ Now you have enough information to navigate your own Gopher hole or Gemini capsu
 walker> exit
 ```
 
-Note that link `10` refers to `gemini://myserver` which in this case refers to our own `test/toycapsule`. You can also have a `gopher://myserver` being listed as a link on the Gemini capsule. If you want to navigate between them, you can execute `ggwalker.py`, as follows:
+Note that link `10` refers to `gemini://myserver.com` which in this case refers to our own `test/toycapsule`. You can also have a `gopher://myserver.com` being listed as a link on the Gemini capsule. If you want to navigate between them, you can execute `ggwalker.py`, as follows:
 ```
-src/ggwalker.py  -s gemini://myserver -s gopher://myserver  test/toyhole test/toycapsule
+src/ggwalker.py  -s gemini://myserver.com -s gopher://myserver.com  test/toyhole test/toycapsule
 ```
 
-In here, we passed two site URLs using the `-s` option, and two paths to navigate. We can now do `visit 1` or `visit 2` to visit one of the paths. If we now go to a link that has a fully qualified url, for example `gemini://myserver/stuff/text.txt` then `ggwalker.py` will change it to `test/toycapsule/stuff/text.txt` and navigate to it.
+In here, we passed two site URLs using the `-s` option, and two paths to navigate. We can now do `visit 1` or `visit 2` to visit one of the paths. If we now go to a link that has a fully qualified url, for example `gemini://myserver.com/stuff/text.txt` then `ggwalker.py` will change it to `test/toycapsule/stuff/text.txt` and navigate to it.
 
 ### Commands
 As we saw in the previous section, there is a set of commands that `ggwalker.py` will accept during an interactive session. Most of those commands can be abbreviated to one or two letters. In here we will present all the commands by type.
@@ -143,7 +143,7 @@ src/ggwalker.py  Gopher-and-Gemini-Walker/test/toyhole  Gopher-and-Gemini-Walker
 A site URL, in this context, corresponds to the URL the deployed Gopher hole or Gemini capsule will have. In most cases, you will not need to use them, unless you are using full URLs for all your references. For example, using our test directory, if I refer to a text file as `stuff/text.txt` the re is no need to supply the site URL, but if I use `gemini://stuff/text.txt` instead, then you need to provide the site URL, so that `ggwalker.py` can find it (otherwise, it will try to launch a gemini browser). 
 You can pass multiple site URLs via command line arguments using the `-s` flag, as follows:
 ```
-src/ggwalker.py  -s gemini://myserver  -s gopher://myserver 
+src/ggwalker.py  -s gemini://myserver.com  -s gopher://myserver.com 
 ```
 
 ##### add (`a`)
@@ -154,9 +154,9 @@ For example:
 walker> add path Gopher-and-Gemini-Walker/test/toyhole
 or
 walker> a p Gopher-and-Gemini-Walker/test/toyhole
-walker> add url gemini://myserver
+walker> add url gemini://myserver.com
 or
-walker> a u gemini://myserver
+walker> a u gemini://myserver.com
 ```
 
 ##### paths (`p`)

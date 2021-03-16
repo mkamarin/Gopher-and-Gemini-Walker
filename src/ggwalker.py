@@ -44,7 +44,8 @@ def vbprint(*args, **kwargs):
 
 def error(*args, **kwargs):
     if verbose:
-        print("ERROR [",os.path.basename(sys.argv[0]),":",inspect.currentframe().f_back.f_lineno,"]: ",
+        print("ERROR [",os.path.basename(sys.argv[0]),":",
+                inspect.currentframe().f_back.f_lineno,"]: ",
                 *args, **kwargs, sep="", file = sys.stderr)
     else:
         print("ERROR: ", *args, **kwargs, sep="", file = sys.stderr)
@@ -52,7 +53,8 @@ def error(*args, **kwargs):
 
 def warn(*args, **kwargs):
     if verbose:
-        print("WARNING [",os.path.basename(sys.argv[0]),":",inspect.currentframe().f_back.f_lineno,"]: ",
+        print("WARNING [",os.path.basename(sys.argv[0]),":",
+                inspect.currentframe().f_back.f_lineno,"]: ",
                 *args, **kwargs, sep="", file = sys.stderr)
     else:
         print("WARNING: ", *args, **kwargs, sep="", file = sys.stderr)
@@ -60,7 +62,8 @@ def warn(*args, **kwargs):
 ###############|123456789|
 # Example      |12 (TXT) |
 gopherFiller = '         '
-gopherItems  = ['0','1','2','3','4','5','6','7','8','9','+','T','g','I','h','s','i','s']
+gopherItems  = ['0','1','2','3','4','5','6','7','8','9','+','T','g',
+        'I','h','s','i','s']
 
 def gopher_link_line(index, item, text):
     label = '  (?)'
@@ -74,7 +77,7 @@ def gopher_link_line(index, item, text):
         label  = '(GIF)'
     elif item == 'I':     # Image file (other than GIF)
         label  = '(PIC)'
-    elif item == 'h':     # HTML file (may be a URL -- indicated with 'URL:')
+    elif item == 'h':     # HTML file (may be a URL - indicated with 'URL:')
         label  = '(URL)'
     elif item == 's':     # Sound file
         label  = '(WAV)'
@@ -89,6 +92,14 @@ geminiFiller = '     '
 def gemini_link_line(index, text):
     return '{:2d} > \x1b[38;5;119m{}\x1b[0m'.format(index, text)
 
+def heading_one(line):
+    return '\x1b[1m\x1b[4m' + line + '\x1b[0m'
+
+def heading_two(line):
+    return '\x1b[1m' + line + '\x1b[0m'
+
+def heading_three(line):
+    return '\x1b[4m' + line + '\x1b[0m'
 
 def gopher_real_link(item, parts):
     numParts = len(parts)
@@ -112,7 +123,8 @@ def gopher_real_link(item, parts):
 def gopher_file_item(name):
     mime = mimetypes.MimeTypes().guess_type(name)[0]
     if not mime:
-        if name.endswith('gophermap') or name.endswith('.gmi') or name.endswith('.gemini'):
+        if (name.endswith('gophermap') or name.endswith('.gmi') 
+                or name.endswith('.gemini')):
             return '0'
         else:
             return '1' # Assume directory
@@ -195,7 +207,7 @@ class walker(cmd.Cmd):
     ##    - otherwise relative to current directory (unless it has host & port or is a URL)
     links  = []
 
-    ## Stack of visited links. Used for back (do_back)
+    ## Stack of visited links. Used to navigate using back (do_back) and forward (do_forward)
     stack  = []
     pStack = -1
 
@@ -224,12 +236,25 @@ class walker(cmd.Cmd):
         else:
             return self.base
 
+    def current_stack(self):
+        if 0 <= self.pStack < len(self.stack):
+            return self.stack[self.pStack]
+        else:
+            return self.base
+
     def clear_stack(self):
         self.stack  = []
         self.pStack = -1
 
     def remove_base(self, place):
         return place.replace(self.base, '', 1)
+
+    def separation_line(self, title):
+        print('\x1b[1A\x1b[44m' + title.center(self.columns) + '\x1b[0m')
+
+    def new_page(self, place, title):
+        self.separation_line(title)
+        self.update_stack(place)
 
     ##################################################################
     ###                    Processing section                      ###
@@ -244,9 +269,8 @@ class walker(cmd.Cmd):
         count = 1
         try:
             flSrc = open(name, 'rt')
-            title = 'Gopher menu [' + self.remove_base(name) + ']' 
-            print('\x1b[44m' + title.center(self.columns) + '\x1b[0m')
-            self.update_stack(name)
+            self.new_page(name, 'Gopher menu [' + 
+                    self.remove_base(name) + ']')
 
             while True:
                 line = flSrc.readline()
@@ -281,9 +305,8 @@ class walker(cmd.Cmd):
         isFenced = False
         try:
             flSrc = open(name, 'rt')
-            title = 'Gemini page [' + self.remove_base(name) + ']' 
-            print('\x1b[44m' + title.center(self.columns) + '\x1b[0m')
-            self.update_stack(name)
+            self.new_page(name, 'Gemini page [' + 
+                    self.remove_base(name) + ']')
             lineWidth = self.columns - len(geminiFiller) -2
 
             while True:
@@ -314,23 +337,25 @@ class walker(cmd.Cmd):
                     line  = line.strip('\t ')
                     if line.startswith('###'):
                         line  = line[3:].strip('\t ')
-                        print(geminiFiller + '\x1b[4m' + line + '\x1b[0m')
+                        print(geminiFiller + heading_three(line))
                     elif line.startswith('##'):
                         line  = line[2:].strip('\t ')
-                        print(geminiFiller + '\x1b[1m' + line + '\x1b[0m')
+                        print(geminiFiller + heading_two(line))
                     else:
                         line  = line[1:].strip('\t ')
-                        print(geminiFiller + '\x1b[1m\x1b[4m' + line + '\x1b[0m')
+                        print(geminiFiller + heading_one(line))
                     continue
                 if re.search(r'^\s*\* ',line): # Section 5.5.2 Unordered list items
                     lines = textwrap.wrap(line.strip('\t ')[2:],
-                            initial_indent='*  ', subsequent_indent='   ', width = lineWidth)
+                            initial_indent='*  ', subsequent_indent='   ',
+                            width = lineWidth)
                     for l in lines:
                         print(geminiFiller + l)
                     continue
                 if re.search(r'^\s*>',line):   # Section 5.5.3 Quote lines
                     lines = textwrap.wrap(line.strip('\t ')[1:],
-                            initial_indent=geminiFiller, subsequent_indent=geminiFiller, 
+                            initial_indent=geminiFiller, 
+                            subsequent_indent=geminiFiller, 
                             width = lineWidth - len(geminiFiller))
                     for l in lines:
                         print(geminiFiller + l)
@@ -347,9 +372,8 @@ class walker(cmd.Cmd):
 
     def process_external_app(self, name):
         try:
-            title = 'Invoke app [' + self.remove_base(name) + ']' 
-            print('\x1b[44m' + title.center(self.columns) + '\x1b[0m')
-            self.update_stack(name)
+            self.new_page(name, 'Invoke app [' + 
+                    self.remove_base(name) + ']') 
 
             subprocess.run(['xdg-open', name])
         except OSError as e:
@@ -358,9 +382,8 @@ class walker(cmd.Cmd):
     def process_text_file(self, name):
         try:
             flSrc = open(name, 'rt')
-            title = 'Text file [' + self.remove_base(name) + ']' 
-            print('\x1b[44m' + title.center(self.columns) + '\x1b[0m')
-            self.update_stack(name)
+            self.new_page(name, 'Text file [' + 
+                    self.remove_base(name) + ']')
 
             while True:
                 line = flSrc.readline()
@@ -378,9 +401,8 @@ class walker(cmd.Cmd):
         count = 1
         try:
             files = os.listdir(name)
-            title = 'Gopher directory [' + self.remove_base(name) + ']' 
-            print('\x1b[44m' + title.center(self.columns) + '\x1b[0m')
-            self.update_stack(name)
+            self.new_page(name, 'Gopher directory [' + 
+                    self.remove_base(name) + ']')
 
             print('\nContent:\n')
             for filename in files:
@@ -396,15 +418,14 @@ class walker(cmd.Cmd):
             error(e, " while processing", name)
 
     def process_url(self, url):
-        title = 'URL [' + url + ']' 
-        print('\x1b[44m' + title.center(self.columns) + '\x1b[0m')
-        self.update_stack(url)
+        self.new_page(url, 'URL [' + url + ']')
         webbrowser.open(url)
 
     def print_list(self, lst, padding=' ', marker=0):
         count = 1
         for l in lst:
-            print('{}{:2d} {} \x1b[38;5;119m{}\x1b[0m'.format(padding, count, '  ' if marker != count else '=>', l))
+            print('{}{:2d} {} \x1b[38;5;119m{}\x1b[0m'.format(padding, 
+                count, '  ' if marker != count else '=>', l))
             count += 1
 
     ##################################################################
@@ -450,7 +471,8 @@ class walker(cmd.Cmd):
             rest = link[1:]
             local, kind = link_type(item, rest)
             localLink = ''
-            if not local and (rest.startswith('gopher://') or rest.startswith('gemini://')):
+            if (not local and (rest.startswith('gopher://') or 
+                    rest.startswith('gemini://'))):
                 localLink = self.rebase_link(rest)
             if localLink:
                 local = True
@@ -542,7 +564,8 @@ class walker(cmd.Cmd):
         if not self.links:
             print("No links currently availables")
             return
-        print('\x1b[44m' + 'List of raw links in the page'.center(self.columns) + '\x1b[0m')
+        self.separation_line('List of raw links in [' + 
+                self.remove_base(self.current_stack()) + ']')
         count = 1
         for link in self.links:
             item = link[0]
@@ -550,10 +573,9 @@ class walker(cmd.Cmd):
             print(gopher_link_line(count, item, rest))
             count += 1
 
-
     def do_visit(self, line):
         '''Visit a path to a Gopher hole or Gemini capsule (shortcut 'v')\nv[isit] [<path-number>|<path>]'''
-        path = line.strip()
+        path = line.strip("'\"\t ")
         old = self.base
         self.base = ''
         self.clear_stack()
@@ -593,7 +615,7 @@ class walker(cmd.Cmd):
     ### This section deal with configuration files ###
     def do_save(self, line):
         '''Save configuration to <file> (shortcut 's')\ns[ave] [<file>] (default to config.json)'''
-        name = line.strip()
+        name = line.strip("'\"\t ")
         name = name if name else 'config.json'
         config = { 'paths' : self.paths, 'site_urls' : self.site_urls }
         with open(name, 'w') as fl:
@@ -602,12 +624,12 @@ class walker(cmd.Cmd):
 
     def do_read(self, line):
         '''Read configuration from <file> (shortcut 'r')\nre[ad] [<file>] (default to config.json)'''
-        name = line.strip()
+        name = line.strip("'\"\t ")
         name = name if name else 'config.json'
         with open(name, 'r') as fl:
             config = json.load(fl)
-        self.paths     = config['paths']
-        self.site_urls = config['site_urls']
+        self.paths     = list(filter(None, config['paths']))
+        self.site_urls = list(filter(None, config['site_urls']))
         print("read from",name)
 
     ### This section deal with list of paths commands ###
@@ -619,7 +641,7 @@ class walker(cmd.Cmd):
             return
 
         if what[0].strip().lower() in ['p', 'path']:
-            path = what[1].strip()
+            path = what[1].strip("'\"\t ")
             if path:
                 if not (path in self.paths):
                     self.paths.append(path.rstrip(os.sep))
@@ -640,7 +662,7 @@ class walker(cmd.Cmd):
             return
 
         if what[0].strip().lower() in ['p', 'path']:
-            path = what[1].strip()
+            path = what[1].strip("'\"\t ")
             if path:
                 if path.isdigit():
                     if int(path) < len(self.paths):
@@ -653,7 +675,7 @@ class walker(cmd.Cmd):
                     else:
                         error("path not in list")
         elif what[0].strip().lower() in ['u', 'url']:
-            url = line.strip()
+            url = line.strip("'\"\t ")
             if url:
                 if url.isdigit():
                     if int(url) < len(self.site_urls):
@@ -679,19 +701,21 @@ class walker(cmd.Cmd):
 
     def do_paths(self, line):
         '''List of paths to visit (shortcut 'p')\np[aths]'''
-        print('\x1b[44m' + 'List of Paths'.center(self.columns) + '\x1b[0m')
+        self.separation_line('List of Paths')
         self.print_list(self.paths)
 
     def do_urls(self, line):
         '''List of site URLs'''
-        print('\x1b[44m' + 'List of URLs'.center(self.columns) + '\x1b[0m')
+        self.separation_line('List of URLs')
         self.print_list(self.site_urls)
 
     def do_dump(self, line):
         '''Dump internal structures'''
-        print('\x1b[44m' + 'Dump of internal structures'.center(self.columns) + '\x1b[0m')
-        print("Terminal:\n    Lines:   ",self.lines,"\n    Columns: ",self.columns,
-                "\nProcessing:",self.processing,"\nBase: \x1b[38;5;119m ",self.base,
+        self.separation_line('Dump of internal structures')
+        print("Terminal:\n    Lines:   ",self.lines,
+                "\n    Columns: ",self.columns,
+                "\nProcessing:",self.processing,
+                "\nBase: \x1b[38;5;119m ",self.base,
                 "\x1b[0m\nPaths:", sep='')
         self.print_list(self.paths,'    ')
         print("\nSite URLs:")
@@ -743,6 +767,7 @@ def arguments() :
     print("                          (e.g gopher://my.site or gemini://host.name.com)")
     print("                          replacing site-url with <path> in a link should")
     print("                          generate a valid path (this flag can repeat)")
+    print("   -c, --config  <file>   Read the config file")
     print("   -h, --help             Prints this help")
     print("   -v, --verbose          Produces extra verbose output")
     sys.exit(2)
@@ -751,8 +776,8 @@ def arguments() :
 def main(argv):
 
    try:
-       opts, args = getopt.getopt(argv,"hvs:",
-               ["help","verbose","site-url="])
+       opts, args = getopt.getopt(argv,"hvs:c:",
+               ["help","verbose","site-url=","config="])
    except getopt.GetoptError as e:
       error(e)
       arguments()
@@ -771,6 +796,8 @@ def main(argv):
              error("Invalid site-url argument (must start with either gopher:// or gemini://)")
              arguments()
          walk.site_urls.append(arSiteUrl)
+      elif opt in ("-c", "--config"):
+         walk.do_read(arg)
       elif opt == "": 
           error("Invalid argument")
           arguments()
