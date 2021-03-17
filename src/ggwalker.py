@@ -180,6 +180,10 @@ class walker(cmd.Cmd):
     ## Type of processing being done (either gopher or gemini)
     processing = ''
 
+    ## Last command to be used in self.default (where self.lastcmd == current command)
+    ## Therefore we need to keep our own and set it on self.precmd
+    last_cmd = ''
+
     ## Paths are the list of folders containing Gopher or Gemini sites.
     ## Corresponds to <path> in the command line invocation of this program
     ## Paths can be updated by using 'add path' (do_add) or 'remove path' (do_remove)
@@ -544,6 +548,7 @@ class walker(cmd.Cmd):
         sx = os.get_terminal_size()
         # set the terminal configuration:
         self.lines, self.columns  = sx.lines, sx.columns
+        self.last_cmd = self.lastcmd
         return line
 
     def do_exit(self, line):
@@ -581,10 +586,10 @@ class walker(cmd.Cmd):
         self.clear_stack()
         if path:
             if path.isdigit():
-                if int(path) <= len(self.paths):
+                if 0 < int(path) <= len(self.paths):
                     self.base = self.paths[int(path)-1]
                 else:
-                    error("invalid index")
+                    error("invalid path index")
             else:
                 if not (path in self.paths):
                     self.base = path.rstrip(os.sep)
@@ -750,8 +755,14 @@ class walker(cmd.Cmd):
             return self.do_forward(line)
         elif CMD == 'v':
             return self.do_visit(line)
-        elif CMD.isdigit() and (0 < int(CMD) <= len(self.links)):
-            return self.visit_link(int(CMD) -1)
+        elif CMD.isdigit():
+            if (self.last_cmd in ['p', 'paths'] 
+                    and (0 < int(CMD) <= len(self.paths))):
+                return self.do_visit(CMD)
+            elif (0 < int(CMD) <= len(self.links)):
+                return self.visit_link(int(CMD) -1)
+            else:
+                error("Index out of range in current context")
         else:
             error("Invalid command")
 
