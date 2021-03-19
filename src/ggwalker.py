@@ -171,49 +171,51 @@ class walker(cmd.Cmd):
     prompt = 'walker> '
     intro  = "Welcome to Gopher and Gemini walker\nType ? or help for list of commands."
 
-    ## Terminal size in number of columns and lines (updated often)
-    lines  = 0
-    columns= 0
+    def __init__(self):
+        cmd.Cmd.__init__(self)
+        ## Terminal size in number of columns and lines (updated often)
+        self.lines  = 0
+        self.columns= 0
 
-    paging = False # check: https://www.geeksforgeeks.org/print-colors-python-terminal/
+        self.paging = False # check: https://www.geeksforgeeks.org/print-colors-python-terminal/
 
-    ## Type of processing being done (either gopher or gemini)
-    processing = ''
+        ## Type of processing being done (either gopher or gemini)
+        self.processing = ''
 
-    ## Last command to be used in self.default (where self.lastcmd == current command)
-    ## Therefore we need to keep our own and set it on self.precmd
-    last_cmd = ''
+        ## Last command to be used in self.default (where self.lastcmd == current command)
+        ## Therefore we need to keep our own and set it on self.precmd
+        self.last_cmd = ''
 
-    ## Paths are the list of folders containing Gopher or Gemini sites.
-    ## Corresponds to <path> in the command line invocation of this program
-    ## Paths can be updated by using 'add path' (do_add) or 'remove path' (do_remove)
-    ## Paths can be listed by using paths (do_paths)
-    ## They can be persisted in a config by using save (do_save) or read (do_read)
-    paths  = []
+        ## Paths are the list of folders containing Gopher or Gemini sites.
+        ## Corresponds to <path> in the command line invocation of this program
+        ## Paths can be updated by using 'add path' (do_add) or 'remove path' (do_remove)
+        ## Paths can be listed by using paths (do_paths)
+        ## They can be persisted in a config by using save (do_save) or read (do_read)
+        self.paths  = []
 
-    ## Site URLs are used to process fully qualified links (by replacing them with a correct path)
-    ## Site URLs can be updated by using 'add url' (do_add) or 'remove url' (do_remove)
-    ## They can be listed by using urls (do_urls)
-    ## They can be persisted in a config by using save (do_save) or read (do_read)
-    site_urls = []
+        ## Site URLs are used to process fully qualified links (by replacing them with a correct path)
+        ## Site URLs can be updated by using 'add url' (do_add) or 'remove url' (do_remove)
+        ## They can be listed by using urls (do_urls)
+        ## They can be persisted in a config by using save (do_save) or read (do_read)
+        self.site_urls = []
 
-    ## Base is the path (from paths above) to the current Gopher or Gemini site being walked
-    ## It can only be changed by visit (do_visit)
-    ## IMPORTANT MUST never end in '/' (os.sep), we .rstrip(os.sep) when setting it.
-    base   = ''
+        ## Base is the path (from paths above) to the current Gopher or Gemini site being walked
+        ## It can only be changed by visit (do_visit)
+        ## IMPORTANT MUST never end in '/' (os.sep), we .rstrip(os.sep) when setting it.
+        self.base   = ''
 
-    ## Links are the list of raw links in the current page being processed.
-    ## Links can be listed using links (do_links)
-    ## A page can be a gophermap file, a gemini file (like index.gmi), or a directory
-    ## In gopher:
-    ##    - a directory without a gophermap file becomes a page listing the content of it
-    ##    - a link that starts with '/' is relative to the base (unless it has host & port)
-    ##    - otherwise relative to current directory (unless it has host & port or is a URL)
-    links  = []
+        ## Links are the list of raw links in the current page being processed.
+        ## Links can be listed using links (do_links)
+        ## A page can be a gophermap file, a gemini file (like index.gmi), or a directory
+        ## In gopher:
+        ##    - a directory without a gophermap file becomes a page listing the content of it
+        ##    - a link that starts with '/' is relative to the base (unless it has host & port)
+        ##    - otherwise relative to current directory (unless it has host & port or is a URL)
+        self.links  = []
 
-    ## Stack of visited links. Used to navigate using back (do_back) and forward (do_forward)
-    stack  = []
-    pStack = -1
+        ## Stack of visited links. Used to navigate using back (do_back) and forward (do_forward)
+        self.stack  = []
+        self.pStack = -1
 
     def update_stack(self, place):
         self.links = []
@@ -253,6 +255,10 @@ class walker(cmd.Cmd):
     def remove_base(self, place):
         return place.replace(self.base, '', 1)
 
+    def fenced_line(self, line):
+        #return '\x1b[40m' + line.ljust(self.columns) + '\x1b[0m'
+        return '\x1b[48;5;239m' + line.ljust(self.columns) + '\x1b[0m'
+
     def separation_line(self, title):
         print('\x1b[1A\x1b[44m' + title.center(self.columns) + '\x1b[0m')
 
@@ -285,8 +291,8 @@ class walker(cmd.Cmd):
                 item = '' if not part[0] else part[0][0]
                 if not item:
                     print()
-                elif item == 'i':
-                    print(gopherFiller + part[0][1:])
+                elif (item == 'i') and (numParts > 1):
+                    print(self.fenced_line(gopherFiller + part[0][1:]))
                 elif (numParts > 1) and (item in gopherItems):
                     part[0] = part[0][1:]
                     self.links.append(item + gopher_real_link(item, part))
@@ -325,7 +331,7 @@ class walker(cmd.Cmd):
                     isFenced = not isFenced
                     continue
                 if isFenced:                   # Section 5.4.4 Preformated text lines
-                    print(geminiFiller + line)
+                    print(self.fenced_line(geminiFiller + line))
                     continue
                 if not line.strip('\t '):
                     print()
@@ -488,7 +494,7 @@ class walker(cmd.Cmd):
                 if rest.endswith('gophermap'):
                     self.process_gopher_map(localLink)
                 elif rest.endswith('.gmi') or rest.endswith('.gemini'):
-                    self.process_gopher_map(localLink)
+                    self.process_gemini_map(localLink)
                 else:
                     self.visit_file(localLink)
             elif not local:
