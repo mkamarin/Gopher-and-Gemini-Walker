@@ -101,6 +101,13 @@ def heading_two(line):
 def heading_three(line):
     return '\x1b[4m' + line + '\x1b[0m'
 
+def fenced_line(line, width):
+    #return '\x1b[40m' + line.ljust(self.columns) + '\x1b[0m'
+    return '\x1b[48;5;239m' + line.ljust(width) + '\x1b[0m'
+
+def separation_line(title, width):
+    print('\x1b[1A\x1b[44m' + title.center(width) + '\x1b[0m')
+
 def gopher_real_link(item, parts):
     numParts = len(parts)
     assert numParts > 1
@@ -174,8 +181,9 @@ class walker(cmd.Cmd):
     def __init__(self):
         cmd.Cmd.__init__(self)
         ## Terminal size in number of columns and lines (updated often)
-        self.lines  = 0
-        self.columns= 0
+        self.lines    = 0
+        self.columns  = 0
+        self.minWidth = 80
 
         self.paging = False # check: https://www.geeksforgeeks.org/print-colors-python-terminal/
 
@@ -255,16 +263,12 @@ class walker(cmd.Cmd):
     def remove_base(self, place):
         return place.replace(self.base, '', 1)
 
-    def fenced_line(self, line):
-        #return '\x1b[40m' + line.ljust(self.columns) + '\x1b[0m'
-        return '\x1b[48;5;239m' + line.ljust(self.columns) + '\x1b[0m'
-
-    def separation_line(self, title):
-        print('\x1b[1A\x1b[44m' + title.center(self.columns) + '\x1b[0m')
-
     def new_page(self, place, title):
-        self.separation_line(title)
+        separation_line(title, self.columns)
         self.update_stack(place)
+
+    def best_width(self):
+        return self.minWidth if self.minWidth <= self.columns else self.columns
 
     ##################################################################
     ###                    Processing section                      ###
@@ -292,7 +296,7 @@ class walker(cmd.Cmd):
                 if not item:
                     print()
                 elif (item == 'i') and (numParts > 1):
-                    print(self.fenced_line(gopherFiller + part[0][1:]))
+                    print(gopherFiller + fenced_line(part[0][1:],self.best_width()))
                 elif (numParts > 1) and (item in gopherItems):
                     part[0] = part[0][1:]
                     self.links.append(item + gopher_real_link(item, part))
@@ -317,7 +321,7 @@ class walker(cmd.Cmd):
             flSrc = open(name, 'rt')
             self.new_page(name, 'Gemini page [' + 
                     self.remove_base(name) + ']')
-            lineWidth = self.columns - len(geminiFiller) -2
+            lineWidth = self.minWidth
 
             while True:
                 line = flSrc.readline()
@@ -326,12 +330,13 @@ class walker(cmd.Cmd):
                 line = line.rstrip('\r\n')
                 
                 ## From: https://gemini.circumlunar.space/docs/specification.html
-                ## Note that I relaxed the start of the line to allow spaces (as it is not clear in the spec)
+                ## Note that I relaxed the start of the line to allow spaces 
+                ##      (as it is not clear in the spec)
                 if re.search(r"^\s*```",line): # Section 5.4.3 Preformatting toggle lines
                     isFenced = not isFenced
                     continue
                 if isFenced:                   # Section 5.4.4 Preformated text lines
-                    print(self.fenced_line(geminiFiller + line))
+                    print(geminiFiller + fenced_line(line,self.best_width()))
                     continue
                 if not line.strip('\t '):
                     print()
@@ -555,6 +560,8 @@ class walker(cmd.Cmd):
         # set the terminal configuration:
         self.lines, self.columns  = sx.lines, sx.columns
         self.last_cmd = self.lastcmd
+        if self.columns < self.minWidth:
+            warn("Terminal too narrow at ",self.columns," (min ",self.minWidth,")\n")
         return line
 
     def do_exit(self, line):
@@ -575,8 +582,8 @@ class walker(cmd.Cmd):
         if not self.links:
             print("No links currently availables")
             return
-        self.separation_line('List of raw links in [' + 
-                self.remove_base(self.current_stack()) + ']')
+        separation_line('List of raw links in [' + 
+                self.remove_base(self.current_stack()) + ']', self.columns)
         count = 1
         for link in self.links:
             item = link[0]
@@ -611,15 +618,20 @@ class walker(cmd.Cmd):
                 error("missing path or index")
 
     def do_set(self, line):
-        '''Set the following:\n    p[aging] = [true|false] (default false)'''
+        '''Set the following:\n    p[aging] = [true|false] (default false)\n    w[idth] = <number> (must be greater than 80)'''
         line = line.strip()
         if line:
             opt = line.split('=')
-            lside = opt[0]
-            rside = '' if len(opt) <= 1 else opt[1]
+            lside = opt[0].strip()
+            rside = '' if len(opt) <= 1 else opt[1].strip()
             if lside in ['p', 'paging']:
                 self.paging = True if (not rside) or (rside.lower() == 'true') else False
                 return
+            elif lside in ['w', 'width']:
+                if rside.isdigit():
+                    w = int(rside)
+                    self.minWidth = w if w >= 80 else 80
+                    return
         print("Invalid set option ",line)
 
 
@@ -712,19 +724,20 @@ class walker(cmd.Cmd):
 
     def do_paths(self, line):
         '''List of paths to visit (shortcut 'p')\np[aths]'''
-        self.separation_line('List of Paths')
+        separation_line('List of Paths', self.columns)
         self.print_list(self.paths)
 
     def do_urls(self, line):
         '''List of site URLs'''
-        self.separation_line('List of URLs')
+        separation_line('List of URLs', self.columns)
         self.print_list(self.site_urls)
 
     def do_dump(self, line):
         '''Dump internal structures'''
-        self.separation_line('Dump of internal structures')
-        print("Terminal:\n    Lines:   ",self.lines,
-                "\n    Columns: ",self.columns,
+        separation_line('Dump of internal structures', self.columns)
+        print("Terminal:\n    Lines:     ",self.lines,
+                "\n    Columns:   ",self.columns,
+                "\n    min width: ",self.minWidth,
                 "\nProcessing:",self.processing,
                 "\nBase: \x1b[38;5;119m ",self.base,
                 "\x1b[0m\nPaths:", sep='')
@@ -784,7 +797,8 @@ def arguments() :
     print("                          (e.g gopher://my.site or gemini://host.name.com)")
     print("                          replacing site-url with <path> in a link should")
     print("                          generate a valid path (this flag can repeat)")
-    print("   -c, --config  <file>   Read the config file")
+    print("   -w, --width  <number>  Min line width (minimum and default is 80)")
+    print("   -c, --config <file>    Read the config file")
     print("   -h, --help             Prints this help")
     print("   -v, --verbose          Produces extra verbose output")
     sys.exit(2)
@@ -793,8 +807,8 @@ def arguments() :
 def main(argv):
 
    try:
-       opts, args = getopt.getopt(argv,"hvs:c:",
-               ["help","verbose","site-url=","config="])
+       opts, args = getopt.getopt(argv,"hvs:c:w:",
+               ["help","verbose","site-url=","config=","width="])
    except getopt.GetoptError as e:
       error(e)
       arguments()
@@ -815,6 +829,8 @@ def main(argv):
          walk.site_urls.append(arSiteUrl)
       elif opt in ("-c", "--config"):
          walk.do_read(arg)
+      elif opt in ("-w", "--width"):
+         walk.do_set("width = " + arg)
       elif opt == "": 
           error("Invalid argument")
           arguments()
