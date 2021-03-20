@@ -479,6 +479,17 @@ class walker(cmd.Cmd):
                         return new
         return ''
 
+    def base_link(self, link):
+        ## Link relative to the base
+        if (not link) or (link[0] == '/'):
+            return self.base
+        ## Link relative to the current place on the stack
+        stk = self.current_stack()
+        if os.path.isdir(stk):
+            return stk
+        else:
+            return os.path.dirname(stk)
+
     def visit_link(self, id):
         try:
             link = self.links[id]
@@ -492,7 +503,7 @@ class walker(cmd.Cmd):
             if localLink:
                 local = True
             else:
-                localLink = os.path.join(self.base,rest.strip(os.sep))
+                localLink = os.path.join(self.base_link(rest),rest.strip(os.sep))
             if local and (kind == 'dir'):
                 self.visit(localLink)
             elif local and (kind == 'file'):

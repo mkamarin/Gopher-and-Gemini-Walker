@@ -28,9 +28,11 @@ But, most likely you want to execute it with the path to your Gopher hole or Gem
 In this example, `~/sources/site` is the folder containing my Gopher hole (`~/sources/site/gophermap` file) or Gemini capsule, in which case there will be an `index.gmi` file (i.e. `~/sources/site/index.gmi`). 
 
 ### Typical session (example)
-In this session, we will use the test directory in this repository. Let execute `ggwalker.py`, as follows:
+In this session, we will use the test directory in this repository. The test directory has two sites, namely `test/toyhole` (a sample Gopher site), and `test/toycapsule` (a Gemini site). They serve two purposes. First, they are a minimal test suite. Second and probably most important they describe how to write a `gophermap` (`test/toyhole`) and a Gemini file (`test/toycapsule`). They follow the traditional `toybox.zip` that many of us used to learn Gopher.
+
+For our typical session, let execute `ggwalker.py`, as follows:
 ```
-src/ggwalker.py  test/toyhole
+~$ src/ggwalker.py  test/toyhole
 ```
 
 Let try the help:
@@ -107,17 +109,22 @@ walker> links
 walker> 
 ```
 
-Now you have enough information to navigate your own Gopher hole or Gemini capsule. You can do the same exercise using `test/toycapsule' instead. You can exit this session using `exit` or `quit`, as follows:
+Now you have enough information to navigate your own Gopher hole or Gemini capsule. You can exit this session using `exit` or `quit`, as follows:
 ```
 walker> exit
 ```
 
-Note that link `10` refers to `gemini://myserver.com` which in this case refers to our own `test/toycapsule`. You can also have a `gopher://myserver.com` being listed as a link on the Gemini capsule. If you want to navigate between them, you can execute `ggwalker.py`, as follows:
+You can do the same exercise using `test/toycapsule`. 
+
+Most commands can be abbreviated to the first one or two letters. In here, we used the commands `visit`, `back`, `links` and `exit` that can be abbreviated as `v`, `b`, `l` and `e`. 
+
+#### Few extra notes on this session 
+Note that link `10` above refers to `gemini://myserver.com` which in this case refers to our own `test/toycapsule`. You can also have a `gopher://myserver.com` being listed as a link on the Gemini capsule. If you want to navigate between them, you can execute `ggwalker.py`, as follows:
 ```
 src/ggwalker.py  -s gemini://myserver.com -s gopher://myserver.com  test/toyhole test/toycapsule
 ```
 
-In here, we passed two site URLs using the `-s` option, and two paths to navigate. We can now do `visit 1` or `visit 2` to visit one of the paths. If we now go to a link that has a fully qualified url, for example `gemini://myserver.com/stuff/text.txt` then `ggwalker.py` will change it to `test/toycapsule/stuff/text.txt` and navigate to it.
+Note that we passed two site URLs using the `-s` option, and two paths to navigate to. We can now do `visit 1` or `visit 2` to visit one of the paths. If we go to a link that has a fully qualified url, for example `gemini://myserver.com/stuff/text.txt` then `ggwalker.py` will change it to `test/toycapsule/stuff/text.txt` and navigate to it.
 
 ### Commands
 As we saw in the previous section, there is a set of commands that `ggwalker.py` will accept during an interactive session. Most of those commands can be abbreviated to one or two letters. In here we will present all the commands by type.
