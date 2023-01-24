@@ -219,6 +219,10 @@ class walker(cmd.Cmd):
         ##    - a directory without a gophermap file becomes a page listing the content of it
         ##    - a link that starts with '/' is relative to the base (unless it has host & port)
         ##    - otherwise relative to current directory (unless it has host & port or is a URL)
+        ## In gemini:
+        ##    - a directory without a index.gmi is a problem
+        ##    - a link that starts with '/' is relative to the base
+        ##    - otherwise relative to current directory
         self.links  = []
 
         ## Stack of visited links. Used to navigate using back (do_back) and forward (do_forward)
@@ -802,8 +806,163 @@ class walker(cmd.Cmd):
     help_quit = help_exit
 
 
+def offline_walk(w):
+
+    def gopher_hole(path): # input path is a file name
+        # path is a fully qualified file name
+        files = set()
+
+        def extract_links(item,base,local, name): 
+            # item is the gopher line item (first charcter of the line)
+            # base is site base (directory of initial index.gmi)
+            # local is the local directory 
+            # name is the file name to extract links from
+            links = set()
+            listFiles = []
+            nonlocal files
+            # We set the fileName to open depending of the original name that is 
+            # indicated by the first char of the name
+            # a '/' indicates relatibe to the base, otherwise relative to the file was being analyzed
+            fileName = base + name if name and name[0] == os.sep else local + os.sep + name
+            if not os.path.isfile(fileName) and not os.path.isdir(fileName):
+                print("ERROR: path not present [",fileName,"]",sep='')
+                return files
+            elif os.path.isdir(fileName):
+                if fileName[-1] == os.sep:
+                    name = fileName + "gophermap"
+                else:
+                    name = fileName + os.sep + "gophermap"
+                if os.path.isfile(name):
+                    fileName = name
+                else:
+                    # Note that in gopher a directory without a gophermap mean that all files should be listed in the client
+                    listFiles = os.listdir(fileName) 
+            if fileName in files:
+                return
+            if listFiles:
+                files.update(listFiles)
+            else:
+                files.add(fileName)
+            if not fileName.endswith("gophermap"):
+                return
+            print("Processing:",fileName)
+            with open(fileName,'r') as hole:
+                for line in hole:
+                    line = line.rstrip(' \r\n')
+                    if not line:
+                        continue
+                    item = line[0]
+                    if not item in ['0','1','4','5','6','9','g','I','h','s']:
+                        continue
+                    linePart = line.split('\t')
+                    if len(linePart) == 1: # Gopher lines without tabs are just text
+                        continue
+                    if len(linePart) < 2:
+                        print("ERROR invalid link: [",line,"]",sep='')
+                        continue
+                    url = linePart[1]
+                    if len(url) > 0:
+                        links.add(item + url)
+
+            new_local = os.path.dirname(fileName)
+            for l in links:
+                if re.match(r'^hURL:',l):
+                    print("Ignoring external link:",l[1:])
+                else:
+                    extract_links(l[0],base, new_local, l[1:])
+            return
+
+
+        base = path[:-1*len(os.sep + "gophermap")]
+        print("Gopher hole:",path)
+        extract_links('1',base, base, os.sep + "gophermap")
+        return files
+
+    def gemini_capsule(path): 
+        # path is a fully qualified file name
+        files = set()
+
+        def extract_links(base,local, name): 
+            # base is site base (directory of initial index.gmi)
+            # local is the local directory 
+            # name is the file name to extract links from
+            links = set()
+            nonlocal files
+            # We set the fileName to open depending of the original name that is 
+            # indicated by the first char of the name
+            # a '/' indicates relatibe to the base, otherwise relative to the file was being analyzed
+            fileName = base + name if name and name[0] == os.sep else local + os.sep + name
+            if not os.path.isfile(fileName):
+                print("ERROR: File not present [",fileName,"]",sep='')
+                return 
+            if fileName in files:
+                return
+            files.add(fileName)
+            if not fileName.endswith("index.gmi"):
+                return
+            with open(fileName,'r') as capsule:
+                for line in capsule:
+                    if not line.startswith("=>"):
+                        continue
+                    url = re.split(r'[ \t]+',line[2:].lstrip(" \t"))[0]
+                    if len(url) > 0:
+                        links.add(url)
+
+            new_local = os.path.dirname(fileName)
+            for l in links:
+                if re.match(r'^[a-z]*:',l):
+                    print("Ignoring external link:",l)
+                else:
+                    extract_links(base, new_local, l)
+            return 
+
+        base = path[:-1*len(os.sep + "index.gmi")]
+        print("Gemini capsule: [",path,"] in ",base,sep='')
+        extract_links(base, base, os.sep + "index.gmi")
+        return files
+
+    visited_files = set()
+    visited_sites = set()
+    for path in w.paths:
+        print("\nProcessing:",path)
+        if os.path.isdir(path):
+            if os.path.isfile(path + os.sep + "gophermap"):
+                visited_files |= gopher_hole(path + os.sep + "gophermap")
+                visited_sites.add(path)
+            elif os.path.isfile(path + os.sep + "index.gmi"):
+                visited_files |= gemini_capsule(path + os.sep + "index.gmi")
+                visited_sites.add(path)
+            else:
+                print("Invalid path:",path,"[Missing either gophermap or index.gmi]")
+        elif os.path.isfile(path) and path.endswith("gophermap"):
+            visited_files |= gopher_hole(path)
+            visited_sites.add(path[:-1*len(os.sep + "gophermap")])
+        elif os.path.isfile(path) and path.endswith("index.gmi"):
+            visited_files |= gemini_capsule(path)
+            visited_sites.add(path[:-1*len(os.sep + "index.gmi")])
+        else:
+            print("Invalid path:",path,"[Not a directory, a gophermap, or a index.gmi]")
+
+    # This is what we have collected
+    print("Visited sites:",visited_sites,"\nVisited files:",visited_files)
+
+    # Now we need to files that were not linked (meaning not in the visited_file set)
+    # For that we need to navigate the whole directory structure provided as the input
+    print("Orphan files:")
+    for path in w.paths:
+        for root, dirs, files in os.walk(path):
+            for name in files:
+                #print(os.path.join(root,name)," [",root,"]",name,sep='')
+                fullName = os.path.join(root,name)
+                if not fullName in visited_files:
+                    print("Orphan:",fullName)
+
+
 def arguments() :
-    print("Usage:\n ",os.path.basename(sys.argv[0])," [flags] [<path> ... <path>]\n\nFlags:")
+    print("Usage:\n ",os.path.basename(sys.argv[0])," [online | online] [flags] [<path> ... <path>]\n\nFlags:")
+    print("   online                 Indicated intereactive mode (default)")
+    print("   offline                Walk the indicated path in offline mode")
+    print("                          checking that all links are correct")
     print("   -s, --site-url  <url>  Site url for the sites being processed")
     print("                          (e.g gopher://my.site or gemini://host.name.com)")
     print("                          replacing site-url with <path> in a link should")
@@ -815,10 +974,18 @@ def arguments() :
     sys.exit(2)
 
 
-def main(argv):
+if __name__ == "__main__":
+
+   arg_values = []
+   mode = "online"
+   if len(sys.argv) > 1 and sys.argv[1] in ("offline","online"):
+       mode = "offline" if sys.argv[1] == "offline" else "online"
+       arg_values = sys.argv[2:]
+   else:
+       arg_values = sys.argv[1:]
 
    try:
-       opts, args = getopt.getopt(argv,"hvs:c:w:",
+       opts, args = getopt.getopt(arg_values,"hvs:c:w:",
                ["help","verbose","site-url=","config=","width="])
    except getopt.GetoptError as e:
       error(e)
@@ -830,7 +997,6 @@ def main(argv):
       if (opt in ("-h","--help")) or (len(sys.argv) == 1):
          arguments()
       elif opt in ("-v", "--verbose"):
-          global verbose
           verbose = True
       elif opt in ("-s", "--site-url"):
          arSiteUrl = arg.strip()
@@ -850,9 +1016,11 @@ def main(argv):
        for arg in args:
            walk.paths.append(arg.rstrip(os.sep))
 
-   walk.cmdloop()
+   if mode == "online":
+       walk.cmdloop()
+   else:
+       offline_walk(walk)
+
    print("done")
 
-if __name__ == "__main__":
-   main(sys.argv[1:])
 

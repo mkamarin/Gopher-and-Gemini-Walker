@@ -186,7 +186,7 @@ The syntax is: `re[move] [p[ath] <number>|<path>] [u[rl] <number>|<url>]`.
 #### Configuration files
 Paths and site URLs are long and cumbersome to type every time that you execute `ggwalker.py`. In addition, they are for most parts static and don't change much over time. Therefore is convenient to have a `save` and `read` commands.
 
- ##### save (`s`)
+##### save (`s`)
 Saves the paths and site URLs to a json file. If no filename is given then `config.json` will be used.
 The syntax is: `s[ave] [<file-name>]`
 
