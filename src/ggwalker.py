@@ -892,13 +892,14 @@ def offline_walk(w):
             # indicated by the first char of the name
             # a '/' indicates relatibe to the base, otherwise relative to the file was being analyzed
             fileName = base + name if name and name[0] == os.sep else local + os.sep + name
+            #print("Extracting:[",fileName,"[",base,"]",local,"[",name,"]",sep='')
             if not os.path.isfile(fileName):
                 print("ERROR: File not present [",fileName,"]",sep='')
                 return 
             if fileName in files:
                 return
             files.add(fileName)
-            if not fileName.endswith("index.gmi"):
+            if not fileName.endswith(".gmi"):
                 return
             with open(fileName,'r') as capsule:
                 for line in capsule:
@@ -944,7 +945,12 @@ def offline_walk(w):
             print("Invalid path:",path,"[Not a directory, a gophermap, or a index.gmi]")
 
     # This is what we have collected
-    print("Visited sites:",visited_sites,"\nVisited files:",visited_files)
+    print("Visited sites:")
+    for s in visited_sites:
+        print("Site:",s)
+    print("Visited files:")
+    for f in visited_files:
+        print("File:",f)
 
     # Now we need to files that were not linked (meaning not in the visited_file set)
     # For that we need to navigate the whole directory structure provided as the input
