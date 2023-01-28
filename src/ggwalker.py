@@ -834,7 +834,8 @@ def offline_walk(w):
             #print("Extracting:[",fileName,"[",base,"]",local,"[",name,"]",sep='')
             if not os.path.isfile(fileName) and not os.path.isdir(fileName):
                 print("ERROR: path not present [",fileName,"]",sep='')
-                return files
+                print("ALL:",item,"[",base,"]",local,"[",name,"]",sep='')
+                return
             elif os.path.isdir(fileName):
                 # Note that in gopher a directory without a gophermap mean that all files should be listed in the client
                 listFiles = os.listdir(fileName) 
@@ -896,6 +897,7 @@ def offline_walk(w):
             #print("Extracting:[",fileName,"[",base,"]",local,"[",name,"]",sep='')
             if not os.path.isfile(fileName):
                 print("ERROR: File not present [",fileName,"]",sep='')
+                print("ALL:[",base,"]",local,"[",name,"]",sep='')
                 return 
             if fileName in files:
                 return
