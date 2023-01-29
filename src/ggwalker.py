@@ -808,6 +808,8 @@ class walker(cmd.Cmd):
 
 def offline_walk(w):
 
+    eLink = set()
+
     def gopher_hole(path): # input path is a file name
         # path is a fully qualified file name
         files = set()
@@ -820,6 +822,7 @@ def offline_walk(w):
             links = set()
             listFiles = []
             nonlocal files
+            nonlocal eLink
             # We set the fileName to open depending of the original name that is 
             # indicated by the first char of the name
             # a '/' indicates relatibe to the base, otherwise relative to the file was being analyzed
@@ -831,12 +834,11 @@ def offline_walk(w):
                     name = fileName + os.sep + "gophermap"
                 if os.path.isfile(name):
                     fileName = name
-            #print("Extracting:[",fileName,"[",base,"]",local,"[",name,"]",sep='')
+            vbprint("Extracting:[",fileName,"[",base,"]",local,"[",name,"]",sep='')
             if not os.path.isfile(fileName) and not os.path.isdir(fileName):
-                print("ERROR: path not present [",fileName,"]",sep='')
-                print("ALL:",item,"[",base,"]",local,"[",name,"]",sep='')
+                print("ERROR: path not present [",fileName,"]\nALL:",item,"[",base,"]",local,"[",name,"]",sep='')
                 return
-            elif os.path.isdir(fileName):
+            if os.path.isdir(fileName):
                 # Note that in gopher a directory without a gophermap mean that all files should be listed in the client
                 listFiles = os.listdir(fileName) 
             if fileName in files:
@@ -847,7 +849,7 @@ def offline_walk(w):
                 files.add(fileName)
             if not fileName.endswith("gophermap"):
                 return
-            print("Processing:",fileName)
+            vbprint("Processing:",fileName)
             with open(fileName,'r') as hole:
                 for line in hole:
                     line = line.rstrip(' \r\n')
@@ -869,7 +871,7 @@ def offline_walk(w):
             new_local = os.path.dirname(fileName)
             for l in links:
                 if re.match(r'^hURL:',l):
-                    print("Ignoring external link:",l[1:])
+                    eLink.add(l)
                 else:
                     extract_links(l[0],base, new_local, l[1:])
             return
@@ -883,6 +885,7 @@ def offline_walk(w):
     def gemini_capsule(path): 
         # path is a fully qualified file name
         files = set()
+        eLink = set()
 
         def extract_links(base,local, name): 
             # base is site base (directory of initial index.gmi)
@@ -890,20 +893,21 @@ def offline_walk(w):
             # name is the file name to extract links from
             links = set()
             nonlocal files
+            nonlocal eLink
             # We set the fileName to open depending of the original name that is 
             # indicated by the first char of the name
             # a '/' indicates relatibe to the base, otherwise relative to the file was being analyzed
             fileName = base + name if name and name[0] == os.sep else local + os.sep + name
-            #print("Extracting:[",fileName,"[",base,"]",local,"[",name,"]",sep='')
+            vbprint("Extracting:[",fileName,"[",base,"]",local,"[",name,"]",sep='')
             if not os.path.isfile(fileName):
-                print("ERROR: File not present [",fileName,"]",sep='')
-                print("ALL:[",base,"]",local,"[",name,"]",sep='')
+                print("ERROR: File not present [",fileName,"]\nALL:[",base,"]",local,"[",name,"]",sep='')
                 return 
             if fileName in files:
                 return
             files.add(fileName)
             if not fileName.endswith(".gmi"):
                 return
+            vbprint("Processing:",fileName)
             with open(fileName,'r') as capsule:
                 for line in capsule:
                     if not line.startswith("=>"):
@@ -915,7 +919,7 @@ def offline_walk(w):
             new_local = os.path.dirname(fileName)
             for l in links:
                 if re.match(r'^[a-z]*:',l):
-                    print("Ignoring external link:",l)
+                    eLink.add(l)
                 else:
                     extract_links(base, new_local, l)
             return 
@@ -951,6 +955,9 @@ def offline_walk(w):
     print("Visited sites:")
     for s in visited_sites:
         print("Site:",s)
+    print("Ignored exteral links:")
+    for e in eLink:
+        print("External Link:",e)
     print("Visited files:")
     for f in visited_files:
         print("File:",f)
